@@ -7,7 +7,7 @@ from neo4j import GraphDatabase
 from sqlalchemy.orm import Session
 
 from .repomap import RepoMap
-from app.modules.search.search_service import SearchService
+
 
 
 class CodeGraphService:
@@ -16,8 +16,7 @@ class CodeGraphService:
         self.db = db
 
     @staticmethod
-    def     
-    (path: str, user_id: str):
+    def generate_node_id(path: str, user_id: str):
         # Concatenate path and signature
         combined_string = f"{user_id}:{path}"
 
@@ -162,19 +161,7 @@ class CodeGraphService:
                 f"Time taken to create graph and search index: {end_time - start_time:.2f} seconds"
             )
 
-    def cleanup_graph(self, project_id: str):
-        with self.driver.session() as session:
-            session.run(
-                """
-                MATCH (n {repoId: $project_id})
-                DETACH DELETE n
-                """,
-                project_id=project_id,
-            )
 
-        # Clean up search index
-        search_service = SearchService(self.db)
-        search_service.delete_project_index(project_id)
 
     async def get_node_by_id(self, node_id: str, project_id: str) -> Optional[Dict]:
         with self.driver.session() as session:

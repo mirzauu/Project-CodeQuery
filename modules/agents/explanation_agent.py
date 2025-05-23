@@ -26,11 +26,9 @@ class ExplanationAgent(ChatAgent):
         )
         tools = self.tools_provider.get_tools(
             [
-                "get_nodes_from_tags",
+ 
                 "ask_knowledge_graph_queries",
-                "get_code_from_multiple_node_ids",
-                "web_search_tool",
-                "github_tool",
+              
             ]
         )
 
