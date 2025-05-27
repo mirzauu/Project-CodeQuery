@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, String, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
-from app.core.base_model import Base
+from app.core.db.postgress_db import Base
 
 
 

@@ -1,6 +1,6 @@
 import smtplib
 from email.message import EmailMessage
-from core.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
+from .config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
 
 def send_email_otp(recipient_email: str, otp: str):
     subject = "Your OTP Code"

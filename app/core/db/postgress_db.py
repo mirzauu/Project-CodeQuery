@@ -9,7 +9,7 @@ load_dotenv(override=True)
 
 # Create engine with connection pooling and best practices
 engine = create_engine(
-    os.getenv("POSTGRES_SERVER"),
+    os.getenv("SQLALCHEMY_DATABASE_URL"),
     pool_size=10,  # Initial number of connections in the pool
     max_overflow=10,  # Maximum number of connections beyond pool_size
     pool_timeout=30,  # Timeout in seconds for getting a connection from the pool

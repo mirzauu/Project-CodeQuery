@@ -31,6 +31,8 @@ class CodeGraphService:
 
     def close(self):
         self.driver.close()
+    def cleanup_graph(self):
+        pass
 
     def create_and_store_graph(self, repo_dir, project_id, user_id):
         # Create the graph using RepoMap

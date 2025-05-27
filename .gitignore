@@ -1,5 +1,7 @@
-.env
-.env.*
+__pycache__/
+*.pyc
+/.env
+
 
 # Ignore Python cache
 __pycache__/
@@ -8,8 +10,6 @@ __pycache__/
 # Ignore logs
 *.log
 
-# Ignore virtual environments
-venv/
-env/
+
 .venv/
-/.env
+.env

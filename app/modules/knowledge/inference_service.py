@@ -13,10 +13,12 @@ from sqlalchemy.orm import Session
 # from app.modules.intelligence.provider.provider_service import (
 #     ProviderService,
 # )
-# from app.modules.parsing.knowledge_graph.inference_schema import (
-#     DocstringRequest,
-#     DocstringResponse,
-# )
+from app.modules.knowledge.schema.inference_schema import (
+    DocstringRequest,
+    DocstringResponse,
+)
+
+from app.core.config import config_provider
 # from app.modules.projects.projects_service import ProjectService
 # from app.modules.search.search_service import SearchService
 
@@ -25,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class InferenceService:
     def __init__(self, db: Session, user_id: Optional[str] = "dummy"):
-        # neo4j_config = config_provider.get_neo4j_config()
+        neo4j_config = config_provider.get_neo4j_config()
         self.driver = GraphDatabase.driver(
             neo4j_config["uri"],
             auth=(neo4j_config["username"], neo4j_config["password"]),
