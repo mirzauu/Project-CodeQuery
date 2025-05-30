@@ -26,12 +26,9 @@ class Conversation(Base):
 
     id = Column(String(255), primary_key=True)
     user_id = Column(String(255), ForeignKey("users.uid", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
     status = Column(SQLAEnum(ConversationStatus), default=ConversationStatus.ACTIVE, nullable=False)
     project_ids = Column(ARRAY(String), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
-    shared_with_emails = Column(ARRAY(String), nullable=True)
-    visibility = Column(SQLAEnum(Visibility), default=Visibility.PRIVATE, nullable=True)
 
     user = relationship("User", back_populates="conversations")

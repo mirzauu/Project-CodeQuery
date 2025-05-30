@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Any
 from typing import Optional, List, Literal
 from datetime import datetime
 
@@ -24,3 +24,12 @@ class MessageInDB(MessageCreate):
     id: str = Field(alias="_id")
     status: Literal["ACTIVE", "DELETED"] = "ACTIVE"
     created_at: datetime
+
+
+class MessageInput(BaseModel):
+    content: str
+
+class ChatMessageResponse(BaseModel):
+    message: str
+    citations: List[str]
+    tool_calls: List[Any]

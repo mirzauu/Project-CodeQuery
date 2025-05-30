@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 /.env
+/alembic
 
 /repos
 # Ignore Python cache
