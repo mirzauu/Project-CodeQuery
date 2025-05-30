@@ -49,14 +49,41 @@ class ParsingService:
         finally:
             os.chdir(old_dir)
 
-    async def parse_validator(self,repo_details: ParseRequest,user_id: str):
-        pass
+    async def parse_validator(self, repo_details: str, user_id: str):
+        # 1. Validate the Git repo URL
+        await self.is_valid_git_repo_url(repo_details)
+
+        # 2. Check if the project already exists
+        project_exists = await self.project_service.check_project_exists(repo_details, user_id)
+
+        if not project_exists:
+            # Project does not exist — clone and register
+            repo, repo_name, repo_path = await self.clone_or_copy_repository(repo_details, user_id)
+            
+            # Register the new project
+            project_id = await self.project_service.register_project(repo_name, user_id, repo_path)
+
+            # Parse the project
+            await self.parse_directory(repo_details, user_id, project_id=project_id)
+        else:
+            # Project exists — fetch it from DB to get details
+            project = await self.project_service.get_project_from_db_by_repo_url(repo_details.repo_link, user_id)
+
+            if not project:
+                raise HTTPException(status_code=500, detail="Project exists but could not be retrieved.")
+
+            project_id = project.id
+            repo_name = project.repo_name
+            repo_path = project.repo_path
+
+            # Parse the existing project
+            await self.parse_directory(repo_details, user_id, project_id=project_id)
+
 
     async def parse_directory(
         self,
         repo_details: ParseRequest,
         user_id: str,
-        user_email: str,
         project_id: int,
         cleanup_graph: bool = True,
     ):
@@ -79,22 +106,22 @@ class ParsingService:
                     logger.error(f"Error in cleanup_graph: {e}")
                     raise HTTPException(status_code=500, detail="Internal server error")
 
-            repo = await self.clone_or_copy_repository(
+            repo,repo_name,user_repo_path = await self.clone_or_copy_repository(
                 repo_details, user_id
             )
             
 
             if isinstance(repo, Repo):
-                language = self.parse_helper.detect_repo_language(extracted_dir)
+                language = self.parse_helper.detect_repo_language(user_repo_path)
             else:
                 languages = repo.get_languages()
                 if languages:
                     language = max(languages, key=languages.get).lower()
                 else:
-                    language = self.parse_helper.detect_repo_language(extracted_dir)
-
+                    language = self.parse_helper.detect_repo_language(user_repo_path)
+            print(f"Detected language: {language}")
             await self.analyze_directory(
-                extracted_dir, project_id, user_id, self.db, language, user_email
+                user_repo_path, project_id, user_id, self.db, language
             )
             message = "The project has been parsed successfully"
             return {"message": message, "id": project_id}
@@ -139,20 +166,12 @@ class ParsingService:
         user_id: str,
         db,
         language: str,
-        user_email: str,
+       
     ):
         logger.info(
             f"Parsing project {project_id}: Analyzing directory: {extracted_dir}"
         )
-        project_details = await self.project_service.get_project_from_db_by_id(
-            project_id
-        )
-        if project_details:
-            repo_name = project_details.get("project_name")
-            branch_name = project_details.get("branch_name")
-        else:
-            logger.error(f"Project with ID {project_id} not found.")
-            raise HTTPException(status_code=404, detail="Project not found.")
+   
 
         if language in ["python", "javascript", "typescript"]:
             graph_manager = Neo4jManager(project_id, user_id)
@@ -227,10 +246,10 @@ class ParsingService:
             )
     
     async def clone_or_copy_repository(self, repo_details, user_id: str) -> Repo:
-        if not hasattr(repo_details, "repo_url") or not repo_details.repo_link:
-            raise HTTPException(status_code=400, detail="Repository URL is required.")
+        # if not hasattr(repo_details, "repo_url") or not repo_details:
+        #     raise HTTPException(status_code=400, detail="Repository URL is required.")
 
-        repo_url = repo_details.repo_link
+        repo_url = repo_details
         repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
         user_repo_path = os.path.join(self.BASE_REPO_DIR, user_id, repo_name)
 
@@ -241,17 +260,17 @@ class ParsingService:
                 repo = Repo(user_repo_path)
                 if repo.bare:
                     raise HTTPException(status_code=400, detail="Existing repo is corrupted or bare.")
-                return repo
+                return repo,repo_name,user_repo_path
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Failed to load existing repo: {str(e)}")
 
         try:
             repo = Repo.clone_from(repo_url, user_repo_path)
-            return repo
+            return repo,repo_name,user_repo_path
         except GitCommandError as e:
             raise HTTPException(status_code=500, detail=f"Git clone failed: {str(e)}")    
         
-    async def is_valid_git_repo_url(repo_url: str) -> bool:
+    async def is_valid_git_repo_url(self,repo_url: str) -> bool:
         """
         Asynchronously checks if a given URL is a valid, publicly accessible Git repository.
         """

@@ -1,4 +1,5 @@
 import logging
+import uuid
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -33,16 +34,13 @@ class ProjectService:
     async def register_project(
         self,
         repo_name: str,
-        branch_name: str,
         user_id: str,
-        project_id: str,
         repo_path: str = None,
     ):
         try:
             project = Project(
-                id=project_id,
+                id=str(uuid.uuid4()),
                 repo_name=repo_name,
-                branch_name=branch_name,
                 user_id=user_id,
                 repo_path=repo_path,
                 status=ProjectStatusEnum.SUBMITTED.value,
@@ -50,7 +48,7 @@ class ProjectService:
             self.db.add(project)
             self.db.commit()
             self.db.refresh(project)
-            logger.info(f"Project registered: {project_id}")
+            logger.info(f"Project registered: ")
             return project.id
         except SQLAlchemyError as e:
             logger.error(f"Failed to register project: {e}", exc_info=True)
@@ -58,22 +56,22 @@ class ProjectService:
             raise ProjectServiceError("Project registration failed.") from e
 
     async def check_project_exists(
-        self, repo_name: str, branch_name: str, user_id: str, repo_path: str = None
+        self, repo_url: str, user_id: str,
     ) -> bool:
+        print(repo_url,user_id)
         try:
             project = (
                 self.db.query(Project)
                 .filter_by(
-                    repo_name=repo_name,
-                    branch_name=branch_name,
+                    repo_url=repo_url,
                     user_id=user_id,
-                    repo_path=repo_path,
+                   
                 )
                 .first()
             )
             return project is not None
         except SQLAlchemyError as e:
-            logger.error(f"DB error during project existence check: {e}")
+            logger.exception(f"DB error during project existence check: {e}")
             raise ProjectServiceError("Failed to check project existence.") from e
 
     async def list_projects(self, user_id: str):
@@ -108,4 +106,83 @@ class ProjectService:
             return project
         except SQLAlchemyError as e:
             logger.error(f"Error in get_project_from_db: {e}")
+            raise ProjectServiceError("Could not retrieve project.") from e
+
+    async def get_project_id(
+        self, repo_name: str,  user_id: str, repo_path: str = None
+    ) -> str:
+        try:
+            project_id = (
+                self.db.query(Project.id)
+                .filter_by(
+                    repo_name=repo_name,
+                   
+                    user_id=user_id,
+                    repo_path=repo_path,
+                )
+                .scalar()
+            )
+            return project_id
+        except SQLAlchemyError as e:
+            logger.error(f"Error in get_project_id: {e}")
+            raise ProjectServiceError("Could not retrieve project ID.") from e    
+        
+    async def get_project_from_db_by_repo_url(self, repo_url: str, user_id: str):
+        try:
+            project = (
+                self.db.query(Project)
+                .filter_by(repo_url=repo_url, user_id=user_id)
+                .first()
+            )
+            return project
+        except SQLAlchemyError as e:
+            logger.error(f"Error in get_project_from_db_by_repo_url: {e}")
+            raise ProjectServiceError("Could not retrieve project.") from e
+        
+    async def update_project_status(self, project_id: str, new_status: str):
+        """
+        Updates the status of a project.
+
+        Args:
+            project_id (str): The ID of the project to update.
+            new_status (str): The new status to set for the project.
+
+        Raises:
+            ProjectNotFoundError: If the project with the given ID is not found.
+            ProjectServiceError: If there is a database error during the update.
+        """
+        try:
+            project = self.db.query(Project).filter_by(id=project_id).first()
+            if not project:
+                raise ProjectNotFoundError(f"Project with ID {project_id} not found.")
+
+            project.status = new_status
+            self.db.commit()
+            logger.info(f"Updated project {project_id} status to {new_status}.")
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to update project status: {e}", exc_info=True)
+            self.db.rollback()
+            raise ProjectServiceError("Failed to update project status.") from e
+
+    def get_project_from_db_by_id_sync(self, project_id: str):
+        """
+        Retrieves a project by its ID synchronously.
+
+        Args:
+            project_id (str): The ID of the project to retrieve.
+
+        Returns:
+            Project: The project object if found.
+
+        Raises:
+            ProjectNotFoundError: If the project with the given ID is not found.
+            ProjectServiceError: If there is a database error during the retrieval.
+        """
+        try:
+            project = self.db.query(Project).filter_by(id=project_id).first()
+            if not project:
+                raise ProjectNotFoundError(f"Project with ID {project_id} not found.")
+            return project
+        except SQLAlchemyError as e:
+            logger.error(f"Error in get_project_from_db_by_id_sync: {e}", exc_info=True)
             raise ProjectServiceError("Could not retrieve project.") from e

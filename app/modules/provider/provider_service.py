@@ -9,6 +9,8 @@ import instructor
 import httpx
 from pydantic import BaseModel
 
+from app.core.config import config_provider
+
 litellm.num_retries = 5  
 
 class AgentProvider(Enum):
@@ -17,14 +19,14 @@ class AgentProvider(Enum):
     PYDANTICAI = "PYDANTICAI"
 
 
-AVAILABLE_MODELS = [
-    AvailableModelOption(
-        id="llama-3.3-70b-versatile",
-        name="llama",
-        description="OpenAI's latest model for complex tasks with large context",
-        provider="llama",
-    ),
-]    
+# AVAILABLE_MODELS = [
+#     AvailableModelOption(
+#         id="llama-3.3-70b-versatile",
+#         name="llama",
+#         description="OpenAI's latest model for complex tasks with large context",
+#         provider="llama",
+#     ),
+# ]    
 
 
 
@@ -41,79 +43,52 @@ class ProviderService:
         self, messages: list, stream: bool = False, config_type: str = "chat"
     ) -> Union[str, AsyncGenerator[str, None]]:
         """Call LLM with the specified messages."""
-       
+        pass
 
-        # Build parameters using the config object
-        params = self._build_llm_params(config)
-        routing_provider = config.model.split("/")[0]
-
-        # Get extra parameters and headers for API calls
-        extra_params, _ = self.get_extra_params_and_headers(routing_provider)
-        params.update(extra_params)
-
-        # Handle streaming response if requested
-        try:
-            if stream:
-
-                async def generator() -> AsyncGenerator[str, None]:
-                    response = await acompletion(
-                        messages=messages, stream=True, **params
-                    )
-                    async for chunk in response:
-                        yield chunk.choices[0].delta.content or ""
-
-                return generator()
-            else:
-                response = await acompletion(messages=messages, **params)
-                return response.choices[0].message.content
-        except Exception as e:
-            logging.error(
-                f"Error calling LLM: {e}, params: {params}, messages: {messages}"
-            )
-            raise e
+        
 
     async def call_llm_with_structured_output(
-        self, messages: list, output_schema: BaseModel, config_type: str = "chat"
+        self, messages: list, output_schema: type[BaseModel], config_type: str = "chat"
     ) -> Any:
         """Call LLM and parse the response into a structured output using a Pydantic model."""
         # Select the appropriate config
-        config = self.chat_config if config_type == "chat" else self.inference_config
+        import json
+        from mistralai import Mistral
 
-        # Build parameters
-        params = self._build_llm_params(config)
-        routing_provider = config.model.split("/")[0]
+        api_key = config_provider.get_llm_api_key()
+        if not api_key:
+            raise ValueError("LLM API key is not set in the configuration.")
+        
+        model = "mistral-large-latest"
 
-        # Get extra parameters and headers
-        extra_params, _ = self.get_extra_params_and_headers(routing_provider)
+        client = Mistral(api_key=api_key)
+
+# Initialize the client with your API key
+        
 
         try:
-            if config.provider == "ollama":
-                # use openai client to call ollama because of https://github.com/BerriAI/litellm/issues/7355
-                client = instructor.from_openai(
-                    AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama"),
-                    mode=instructor.Mode.JSON,
-                )
-                response = await client.chat.completions.create(
-                    model=params["model"].split("/")[-1],
-                    messages=messages,
-                    response_model=output_schema,
-                    temperature=params.get("temperature", 0.3),
-                    max_tokens=params.get("max_tokens"),
-                    **extra_params,
-                )
-            else:
-                client = instructor.from_litellm(acompletion, mode=instructor.Mode.JSON)
-                response = await client.chat.completions.create(
-                    model=params["model"],
-                    messages=messages,
-                    response_model=output_schema,
-                    strict=True,
-                    temperature=params.get("temperature", 0.3),
-                    max_tokens=params.get("max_tokens"),
-                    api_key=params.get("api_key"),
-                    **extra_params,
-                )
-            return response
+            # Make the LLM request
+            response = client.chat.complete(
+                model=model,
+                messages=messages,
+                response_format={"type": "json_object"},
+            )
+
+            # Get the JSON string
+            raw = response.choices[0].message.content
+            logging.info(f"Raw LLM response: {raw}")
+
+            # Parse the JSON string into Python list
+            parsed_data = json.loads(raw)
+
+            # ✅ Ensure it's wrapped in a dict with "docstrings" key
+            if isinstance(parsed_data, list):
+                parsed_data = {"docstrings": parsed_data}
+
+            # ✅ Now validate the parsed_data against the Pydantic model
+            validated_output = output_schema.model_validate(parsed_data)
+            return validated_output
+
         except Exception as e:
             logging.error(f"LLM call with structured output failed: {e}")
             raise e

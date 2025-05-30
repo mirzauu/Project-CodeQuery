@@ -10,16 +10,16 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
 
 # from app.core.config_provider import config_provider
-# from app.modules.intelligence.provider.provider_service import (
-#     ProviderService,
-# )
+from app.modules.provider.provider_service import (
+    ProviderService,
+)
 from app.modules.knowledge.schema.inference_schema import (
     DocstringRequest,
     DocstringResponse,
 )
 
 from app.core.config import config_provider
-# from app.modules.projects.projects_service import ProjectService
+from app.modules.conversation.project.project_service import ProjectService
 # from app.modules.search.search_service import SearchService
 
 logger = logging.getLogger(__name__)
@@ -33,10 +33,10 @@ class InferenceService:
             auth=(neo4j_config["username"], neo4j_config["password"]),
         )
 
-        # self.provider_service = ProviderService(db, user_id)
+        self.provider_service = ProviderService(db, user_id)
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         # self.search_service = SearchService(db)
-        # self.project_manager = ProjectService(db)
+        self.project_manager = ProjectService(db)
         self.parallel_requests = int(os.getenv("PARALLEL_REQUESTS", 50))
 
     def close(self):
@@ -433,13 +433,13 @@ class InferenceService:
         ]
 
         # Perform bulk insert
-        await self.search_service.bulk_create_search_indices(nodes_to_index)
+        # await self.search_service.bulk_create_search_indices(nodes_to_index)
 
         logger.info(
             f"Project {repo_id}: Created search indices over {len(nodes_to_index)} nodes"
         )
 
-        await self.search_service.commit_indices()
+        # await self.search_service.commit_indices()
         # entry_points = self.get_entry_points(repo_id)
         # logger.info(
         #     f"DEBUGNEO4J: After get entry points, Repo ID: {repo_id}, Entry points: {len(entry_points)}"
@@ -608,7 +608,7 @@ class InferenceService:
                 for n in docstrings.docstrings
             ]
             project = self.project_manager.get_project_from_db_by_id_sync(repo_id)
-            repo_path = project.get("repo_path")
+            repo_path = project.repo_path
             is_local_repo = True if repo_path else False
             for i in range(0, len(docstring_list), batch_size):
                 batch = docstring_list[i : i + batch_size]

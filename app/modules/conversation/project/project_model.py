@@ -22,11 +22,11 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Text, primary_key=True)
-    properties = Column(String)  # or BYTEA if you're storing binary
+    properties = Column(String, nullable=True)  # or BYTEA if you're storing binary
     repo_name = Column(Text)
     repo_path = Column(Text, nullable=True)
+    repo_url = Column(Text, nullable=True)
     user_id = Column(String(255), ForeignKey("users.uid", ondelete="CASCADE"), nullable=False)
-    commit_id = Column(String(255))
     is_deleted = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())

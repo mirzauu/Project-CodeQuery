@@ -1,34 +1,43 @@
 from logging.config import fileConfig
-
+from dotenv import load_dotenv
+import os
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
-import sys
-import os
-from dotenv import load_dotenv
-# this is the Alembic Config object, which provides
-
-# ✅ Load environment variables
 load_dotenv(override=True)
 
-# ✅ Alembic Config object
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
 config = context.config
 
-# ✅ Logging configuration
-fileConfig(config.config_file_name)
+from app.core.db.postgress_db import Base
+from app.modules.conversation.project.project_model import Project
+from app.modules.users.user_model import User
+from app.modules.conversation.chat.chat_model import Conversation
 
-# ✅ Dynamically set SQLAlchemy URL from .env
+
+target_metadata = Base.metadata
+
+# noqa
+
 POSTGRES_SERVER = os.getenv("SQLALCHEMY_DATABASE_URL", "localhost")
+
+# Interpret the config file for Python logging.
+# This line sets up loggers basically.
+config = context.config
 config.set_main_option("sqlalchemy.url", POSTGRES_SERVER)
 
-# ✅ Import your Base metadata
-from core.db.postgress_db import Base
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
 
-
-# ✅ Set the metadata for 'autogenerate'
-target_metadata = Base.metadata
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
 
 
 def run_migrations_offline() -> None:

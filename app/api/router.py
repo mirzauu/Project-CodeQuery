@@ -11,6 +11,8 @@ from app.modules.knowledge.parsing_service import ParsingService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
+
 @router.post("/send-otp")
 def send_otp(data: UserCreate, db: Session = Depends(get_db)):
     service = UserService(db)
@@ -27,8 +29,8 @@ def verify_otp(data: UserLogin, db: Session = Depends(get_db)):
 @router.post("/parse")
 async def parse(data: ParseRequest,user=Depends(UserService.check_auth), db: Session = Depends(get_db)): 
     parse = ParsingService(db,user.uid)
-    print(data.repo_link,user.uid)
-    return await parse.parse_validator(data.repo_link,user)
+  
+    return await parse.parse_validator(data.repo_link,user.uid)
 
 
 @router.get("/me")

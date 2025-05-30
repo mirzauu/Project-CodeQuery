@@ -18,6 +18,7 @@ JWT_SECRET=''
 
 JWT_ALGORITHM=''
 
+LLM_API_KEY = os.getenv("LLM_API_KEY", "your_default_llm_api_key")
 
 class ConfigProvider:
     def __init__(self):
@@ -29,6 +30,9 @@ class ConfigProvider:
 
     def get_neo4j_config(self):
         return self.neo4j_config
+
+    def get_llm_api_key(self):
+        return os.getenv("LLM_API_KEY", "your_default_llm_api_key")    
     
 
 config_provider = ConfigProvider()        

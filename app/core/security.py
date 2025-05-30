@@ -7,7 +7,7 @@ import jwt
 
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 300
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -24,8 +24,10 @@ def verify_token(token: str):
 
 
 def decode_jwt_token(token: str):
+   
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+   
         exp = payload.get("exp")
         if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(tz=timezone.utc):
             raise HTTPException(status_code=401, detail="Token expired")

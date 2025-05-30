@@ -33,6 +33,65 @@ class UserService:
     # ---------------------------
     def _generate_uid(self):
         return ''.join(random.choices(string.ascii_letters + string.digits, k=24))
+    
+
+    def signup(self, user_data: UserCreate):
+        user = self.db.query(User).filter_by(email=user_data.email).first()
+        otp_code = self._generate_otp()
+        expiry_time = datetime.utcnow() + timedelta(minutes=self.OTP_EXPIRY_MINUTES)
+
+        if user:
+            user.otp_code = otp_code
+            user.otp_expiry = expiry_time
+            user.first_name = user_data.first_name or user.first_name
+            user.last_name = user_data.last_name or user.last_name
+        else:
+            user = User(
+                uid=self._generate_uid(),
+                email=user_data.email,
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
+                otp_code=otp_code,
+                otp_expiry=expiry_time,
+            )
+            self.db.add(user)
+
+        self.db.commit()
+
+        # Send OTP to user's email
+        send_email_otp(user.email, otp_code)
+
+        return {"message": "OTP sent successfully to email."}
+
+    # ---------------------------
+    # Login: Verify OTP, Return Token
+    # ---------------------------
+    def login(self, login_data: UserLogin):
+        user = self.db.query(User).filter_by(email=login_data.email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.otp_code != login_data.otp:
+            raise HTTPException(status_code=400, detail="Invalid OTP")
+        if not user.otp_expiry or user.otp_expiry < datetime.utcnow():
+            raise HTTPException(status_code=400, detail="OTP expired")
+
+        user.email_verified = True
+        user.last_login_at = datetime.utcnow()
+        user.otp_code = None
+        user.otp_expiry = None
+        self.db.commit()
+
+        token = create_access_token({"uid": user.uid})
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "uid": user.uid,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            },
+        }
 
     # ---------------------------
     # Send OTP to Email
@@ -72,7 +131,7 @@ class UserService:
     # ---------------------------
     def verify_otp_and_login(self, login_data: UserLogin):
         user = self.db.query(User).filter_by(email=login_data.email).first()
-        print(user.otp_expiry)
+        
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         if user.otp_code != login_data.otp:
@@ -127,7 +186,8 @@ class UserService:
 
         token = credentials.credentials
         payload = decode_jwt_token(token)
-        user_id = payload.get("uid")
+        user_id = payload.get("sub")
+        print("user detials",payload,user_id)
 
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token payload")
