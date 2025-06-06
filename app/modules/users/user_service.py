@@ -131,7 +131,6 @@ class UserService:
     # ---------------------------
     def verify_otp_and_login(self, login_data: UserLogin):
         user = self.db.query(User).filter_by(email=login_data.email).first()
-        
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         if user.otp_code != login_data.otp:
@@ -142,8 +141,8 @@ class UserService:
         # Update user status
         user.email_verified = True
         user.last_login_at = datetime.utcnow()
-        user.otp_code = None
-        user.otp_expiry = None
+        # user.otp_code = None
+        # user.otp_expiry = None
         self.db.commit()
 
         token = create_access_token({"sub": user.uid})

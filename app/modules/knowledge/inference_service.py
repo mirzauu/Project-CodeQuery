@@ -33,7 +33,7 @@ class InferenceService:
             auth=(neo4j_config["username"], neo4j_config["password"]),
         )
 
-        self.provider_service = ProviderService(db, user_id)
+        self.provider_service = ProviderService(db)
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         # self.search_service = SearchService(db)
         self.project_manager = ProjectService(db)

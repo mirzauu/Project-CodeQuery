@@ -14,3 +14,6 @@ chat_collection = db["chat"]  # Async collection
 # Dependency to be used in FastAPI
 async def get_mongo_db() -> AsyncIOMotorDatabase:
     return db
+
+
+

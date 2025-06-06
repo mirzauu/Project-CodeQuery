@@ -1,16 +1,17 @@
 import re
 from typing import List, AsyncGenerator
+import logging
 
-from .tool_helpers import (
+from app.modules.tools.tool_helper import (
     get_tool_call_info_content,
     get_tool_response_message,
     get_tool_result_info_content,
     get_tool_run_message,
 )
-from app.modules.intelligence.provider.provider_service import (
+from app.modules.provider.provider_service import (
     ProviderService,
 )
-from ..agent_schema import ChatAgent, ChatAgentResponse, ChatContext,AgentConfig,TaskConfig
+from ..agent_schema import ChatAgent, ChatAgentResponse, ChatContext,AgentConfig,TaskConfig, ToolCallEventType,ToolCallResponse
 
 
 
@@ -27,24 +28,15 @@ from pydantic_ai.messages import (
 )
 from langchain_core.tools import StructuredTool
 
-logger = setup_logger(__name__)
+from pydantic_ai.models.groq import GroqModel
+from pydantic_ai.providers.groq import GroqProvider
+from pydantic_ai.models.mistral import MistralModel
+from pydantic_ai.providers.mistral import MistralProvider 
 
-class ToolCallResponse:
-    def __init__(self, call_id, event_type, tool_name, tool_response, tool_call_details):
-        self.call_id = call_id
-        self.event_type = event_type
-        self.tool_name = tool_name
-        self.tool_response = tool_response
-        self.tool_call_details = tool_call_details
+logger = logging.getLogger(__name__)
 
-    def __repr__(self):
-        return (
-            f"\n--- ToolCall [{self.event_type.upper()}] ---\n"
-            f"Tool: {self.tool_name}\n"
-            f"Details: {self.tool_call_details['summary']}\n"
-            f"Response: {self.tool_response}\n"
-            f"---------------------------\n"
-        )
+
+    
 class PydanticRagAgent(ChatAgent):
     def __init__(
         self,
@@ -62,7 +54,10 @@ class PydanticRagAgent(ChatAgent):
             tools[i].name = re.sub(r" ", "", tool.name)
 
         self.agent = Agent(
-            model=llm_provider.get_pydantic_model(),
+            model=MistralModel(
+                model_name="mistral-large-latest",
+                provider=MistralProvider(api_key="I8dVoJSO5XmpMUcyIQ0KRiGNfduJRCM8")
+            ),
             tools=[
                 Tool(
                     name=tool.name,
@@ -79,20 +74,20 @@ class PydanticRagAgent(ChatAgent):
             model_settings={"parallel_tool_calls": True, "max_tokens": 8000},
         )
 
+    
     def _create_task_description(
         self,
         task_config: TaskConfig,
         ctx: ChatContext,
     ) -> str:
-      
+        """Create a task description from task configuration"""
+        
 
         return f"""
                 CONTEXT:
                 User Query: {ctx.query}
                 Project ID: {ctx.project_id}
-                Node IDs: {" ,".join(ctx.node_ids)}
-                Project Name (this is name from github. i.e. owner/repo): {ctx.project_name}
-
+                
                 Additional Context:
                 {ctx.additional_context if ctx.additional_context != "" else "no additional context"}
 
@@ -117,6 +112,7 @@ class PydanticRagAgent(ChatAgent):
                 With above information answer the user query: {ctx.query}
             """
 
+
     async def run(self, ctx: ChatContext) -> ChatAgentResponse:
         """Main execution flow"""
         logger.info("running pydantic-ai agent")
@@ -139,8 +135,9 @@ class PydanticRagAgent(ChatAgent):
     async def run_stream(
         self, ctx: ChatContext
     ) -> AsyncGenerator[ChatAgentResponse, None]:
-        logger.info("running pydantic-ai agent stream")
+        print("running pydantic-ai agent stream",ctx)
         task = self._create_task_description(self.tasks[0], ctx)
+        print(f"Task description: {task}")
         try:
             async with self.agent.iter(
                 user_prompt=task,
@@ -148,9 +145,11 @@ class PydanticRagAgent(ChatAgent):
                     ModelResponse([TextPart(content=msg)]) for msg in ctx.history
                 ],
             ) as run:
+                print("run started")
                 async for node in run:
                     if Agent.is_model_request_node(node):
                         # A model request node => We can stream tokens from the model's request
+                        print("model request node found")
                         async with node.stream(run.ctx) as request_stream:
                             async for event in request_stream:
                                 if isinstance(event, PartStartEvent) and isinstance(
@@ -161,6 +160,7 @@ class PydanticRagAgent(ChatAgent):
                                         tool_calls=[],
                                         citations=[],
                                     )
+                               
                                 if isinstance(event, PartDeltaEvent) and isinstance(
                                     event.delta, TextPartDelta
                                 ):
@@ -171,57 +171,46 @@ class PydanticRagAgent(ChatAgent):
                                     )
 
                     elif Agent.is_call_tools_node(node):
+                        print("call tools node found")
                         async with node.stream(run.ctx) as handle_stream:
                             async for event in handle_stream:
                                 if isinstance(event, FunctionToolCallEvent):
+                                    summary = f"Calling `{event.part.tool_name}` with args: {event.part.args_as_dict()}"
+                                    tool_call = ToolCallResponse(
+                                        call_id=event.part.tool_call_id or "",
+                                        event_type="call",
+                                        tool_name=event.part.tool_name,
+                                        tool_response="Running tool...",
+                                        tool_call_details={"summary": summary},
+                                    )
+
                                     yield ChatAgentResponse(
                                         response="",
-                                        tool_calls=[
-                                            ToolCallResponse(
-                                                call_id=event.part.tool_call_id or "",
-                                                event_type=ToolCallEventType.CALL,
-                                                tool_name=event.part.tool_name,
-                                                tool_response=get_tool_run_message(
-                                                    event.part.tool_name
-                                                ),
-                                                tool_call_details={
-                                                    "summary": get_tool_call_info_content(
-                                                        event.part.tool_name,
-                                                        event.part.args_as_dict(),
-                                                    )
-                                                },
-                                            )
-                                        ],
+                                        tool_calls=[tool_call],
                                         citations=[],
                                     )
+                            
                                 if isinstance(event, FunctionToolResultEvent):
+                                    summary = f"Calling `{event.result.tool_name}` with args: {event.result.content}"
+                                    tool_call=ToolCallResponse(
+                                        call_id=event.result.tool_call_id or "",
+                                        event_type="call",
+                                        tool_name=event.result.tool_name,
+                                        tool_response="Running tool...",
+                                        tool_call_details={"summary": summary},
+                                    )
+
                                     yield ChatAgentResponse(
                                         response="",
-                                        tool_calls=[
-                                            ToolCallResponse(
-                                                call_id=event.result.tool_call_id or "",
-                                                event_type=ToolCallEventType.RESULT,
-                                                tool_name=event.result.tool_name
-                                                or "unknown tool",
-                                                tool_response=get_tool_response_message(
-                                                    event.result.tool_name
-                                                    or "unknown tool"
-                                                ),
-                                                tool_call_details={
-                                                    "summary": get_tool_result_info_content(
-                                                        event.result.tool_name
-                                                        or "unknown tool",
-                                                        event.result.content,
-                                                    )
-                                                },
-                                            )
-                                        ],
+                                        tool_calls=[tool_call],
                                         citations=[],
                                     )
 
                     elif Agent.is_end_node(node):
                         logger.info("result streamed successfully!!")
+                        print("end node found")
 
         except Exception as e:
             logger.error(f"Error in run method: {str(e)}", exc_info=True)
             raise Exception from e
+

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException,status
 from sqlalchemy.orm import Session
-from app.core.db.postgress_db import get_db
-
-from app.core.db.mongo_db import get_mongo_db, AsyncIOMotorDatabase
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.modules.conversation.chat.message_schema import MessageCreate,MessageInput
+
+from app.core.db.postgress_db import get_db
+from app.core.db.mongo_db import get_mongo_db, AsyncIOMotorDatabase
+from app.modules.conversation.chat.message_schema import MessageCreate,MessageInput,MessageOut
 from app.modules.users.user_schema import UserCreate, UserLogin
 from app.modules.knowledge.schema.parsing_schema import ParseRequest
 from app.modules.users.user_service import UserService
@@ -36,28 +37,17 @@ async def parse(data: ParseRequest,user=Depends(UserService.check_auth), db: Ses
     return await parse.parse_validator(data.repo_link,user.uid)
 
 
-@router.get("/me")
-def get_current_user(user=Depends(UserService.check_auth)):
-    return {
-        "uid": user.uid,
-        "email": user.email,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-    }
-
-
 @router.get("/projects")
-async def get_projects(user_id: str, db=Depends(get_db)):
+async def get_projects(user_id=Depends(UserService.check_auth), db=Depends(get_db)):
     service = ProjectService(db)
-    return await service.list_projects(user_id)
-
+    return await service.list_projects(user_id.uid)
 
 
 @router.post("/conversations/{project_id}/message/")
 async def send_message(
     project_id: str,
     body: MessageInput,
-    user_id: str,
+    user_id=Depends(UserService.check_auth),
     db: Session = Depends(get_db),  # sync session
     mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ):
@@ -66,7 +56,7 @@ async def send_message(
     
     try:
         # Init chat service
-        chat_service = ChatService(project_id=project_id, user_id=user_id, sql_db=db, mongo_db=mongo_db)
+        chat_service = ChatService(project_id=project_id, user_id=user_id.uid, sql_db=db, mongo_db=mongo_db)
         chat_service.init()  # sync call
 
         # Create message
@@ -74,15 +64,48 @@ async def send_message(
             conversation_id=chat_service.conversation.id,
             content=body.content,
             type="HUMAN",
-            sender_id=user_id
+            sender_id=user_id.uid
         )
 
-        message_id = await chat_service.post_message(message_data)
-        return {"message_id": message_id, "detail": "Message stored successfully"}
-
+        message_stream = chat_service.post_message(message_data,project_id, user_id.uid)
+        async for chunk in message_stream:
+        
+           return chunk
+        
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to send message: {str(e)}"
         )
 
+
+@router.get("/conversations/{project_id}/history", response_model=List[MessageOut])
+async def get_conversation_history(
+    project_id: str,
+    user_id=Depends(UserService.check_auth),
+    db: Session = Depends(get_db),
+    mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+):
+    try:
+        # Initialize chat service
+        chat_service = ChatService(project_id=project_id, user_id=user_id.uid, sql_db=db, mongo_db=mongo_db)
+        chat_service.init()  # sync call
+
+        # Fetch history using your method
+        messages = await chat_service.get_session_history(user_id.uid)
+
+        # Convert LangChain messages (HumanMessage/AIMessage) into response schema
+        response = []
+        for msg in messages:
+            response.append({
+                "sender_type": "HUMAN" if msg.__class__.__name__ == "HumanMessage" else "AI",
+                "content": msg.content
+            })
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve conversation history: {str(e)}"
+        )

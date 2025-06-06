@@ -97,7 +97,6 @@ class ProjectService:
                 self.db.query(Project)
                 .filter_by(
                     repo_name=repo_name,
-                    branch_name=branch_name,
                     user_id=user_id,
                     repo_path=repo_path,
                 )
@@ -164,7 +163,7 @@ class ProjectService:
             self.db.rollback()
             raise ProjectServiceError("Failed to update project status.") from e
 
-    def get_project_from_db_by_id_sync(self, project_id: str):
+    async def get_project_from_db_by_id_sync(self, project_id: str):
         """
         Retrieves a project by its ID synchronously.
 
@@ -186,3 +185,42 @@ class ProjectService:
         except SQLAlchemyError as e:
             logger.error(f"Error in get_project_from_db_by_id_sync: {e}", exc_info=True)
             raise ProjectServiceError("Could not retrieve project.") from e
+        
+    def get_project_from_db_by_id(self, project_id: str):
+        """
+        Retrieves a project by its ID synchronously.
+
+        Args:
+            project_id (str): The ID of the project to retrieve.
+
+        Returns:
+            Project: The project object if found.
+
+        Raises:
+            ProjectNotFoundError: If the project with the given ID is not found.
+            ProjectServiceError: If there is a database error during the retrieval.
+        """
+        try:
+            project = self.db.query(Project).filter_by(id=project_id).first()
+            if not project:
+                raise ProjectNotFoundError(f"Project with ID {project_id} not found.")
+            return project
+        except SQLAlchemyError as e:
+            logger.error(f"Error in get_project_from_db_by_id_sync: {e}", exc_info=True)
+            raise ProjectServiceError("Could not retrieve project.") from e
+
+    async def get_project_repo_details_from_db(self, project_id: int, user_id: str):
+        project = (
+            self.db.query(Project)
+            .filter(Project.id == project_id, Project.user_id == user_id)
+            .first()
+        )
+        if project:
+            return {
+                "id": project.id,
+                "repo_name": project.repo_name,
+                "user_id": project.user_id,
+                "repo_path": project.repo_path,
+            }
+        else:
+            return None    

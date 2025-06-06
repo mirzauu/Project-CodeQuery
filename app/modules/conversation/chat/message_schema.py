@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, Any
-from typing import Optional, List, Literal
+from pydantic import BaseModel, Field
+from typing import Optional, List, Literal,Any
 from datetime import datetime
 
 
@@ -33,3 +33,7 @@ class ChatMessageResponse(BaseModel):
     message: str
     citations: List[str]
     tool_calls: List[Any]
+
+class MessageOut(BaseModel):
+    sender_type: str  # "HUMAN" or "AI"
+    content: str

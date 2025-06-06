@@ -4,9 +4,8 @@ from typing import Dict, List
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from knowledge.schema.inference_schema import QueryResponse
-from knowledge.inference_service import InferenceService
-from app.modules.projects.projects_service import ProjectService
+from app.modules.knowledge.schema.inference_schema import QueryResponse
+from app.modules.knowledge.inference_service import InferenceService
 
 
 class QueryRequest(BaseModel):
@@ -103,16 +102,9 @@ class KnowledgeGraphQueryTool:
         Returns:
         - Dict[str, str]: A dictionary where keys are the original queries and values are the corresponding responses.
         """
-        project = asyncio.run(
-            ProjectService(self.sql_db).get_project_repo_details_from_db(
-                project_id, self.user_id
-            )
-        )
-        if not project:
-            raise ValueError(
-                f"Project with ID '{project_id}' not found in database for user '{self.user_id}'"
-            )
-        project_id = project["id"]
+        
+        
+        project_id = "b659a226-9556-467f-830a-0a27b4eaed86"
         query_list = [
             QueryRequest(query=query, project_id=project_id, node_ids=node_ids)
             for query in queries

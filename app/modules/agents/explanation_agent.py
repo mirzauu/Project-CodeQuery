@@ -2,83 +2,87 @@ from .agent_schema import ChatAgent, ChatAgentResponse, ChatContext,AgentConfig,
 from .framework.pydantic_agent import PydanticRagAgent
 
 from typing import AsyncGenerator
+from app.modules.provider.provider_service import (
+    ProviderService,
+)
 
 class ExplanationAgent(ChatAgent):
     def __init__(
         self,
         llm_provider: ProviderService,
-        tools_provider: ToolService,
+
     ):
-        self.tools_provider = tools_provider
         self.llm_provider = llm_provider
 
     def _build_agent(self):
         agent_config = AgentConfig(
-            role="Code Explanation Assistant",
-            goal="Explain code functionality, structure, and logic clearly",
-            backstory="You are an AI assistant skilled at explaining source code in simple, understandable terms for developers of all levels.",
+            role="Blog Writing Assistant",
+            goal="Write clear, structured, and insightful blog content that explains the functionality, structure, and logic of source code.",
+            backstory="You are an AI writing assistant specialized in creating developer-friendly blog posts. Your strength lies in breaking down complex code into simple, understandable explanations with helpful examples, context, and technical clarity.",
             tasks=[
                 TaskConfig(
-                    description=explanation_task_prompt,
-                    expected_output="Clear explanation of what the code does, how it works, and any relevant context or dependencies.",
+                    description="Write a blog-style explanation of the provided code. Break down what the code does, how it works, and include any important details such as dependencies, use cases, or improvements.",
+                    expected_output="A well-structured blog post that explains the code clearly, using headings, bullet points, and code snippets as needed. The tone should be educational, engaging, and suitable for readers ranging from beginner to intermediate developers."
                 )
-            ],
+            ]
+
         )
-        tools = self.tools_provider.get_tools(
-            [
+        tools = [
  
-                "ask_knowledge_graph_queries",
+                "extract_keywords",
               
             ]
-        )
+        
 
         return PydanticRagAgent(self.llm_provider, agent_config, tools)
 
     async def run(self, ctx: ChatContext) -> ChatAgentResponse:
+        print(f"Running ExplanationAgent with context: {ctx}")
         return await self._build_agent().run(ctx)
 
     async def run_stream(
         self, ctx: ChatContext
     ) -> AsyncGenerator[ChatAgentResponse, None]:
+        print(f"Running ExplanationAgent in stream mode with context: {ctx}")
         async for chunk in self._build_agent().run_stream(ctx):
             yield chunk
 
-
 explanation_task_prompt = """
-You are provided with code snippets, modules, or file diffs from a codebase.
+You are provided with one or more code snippets, modules, or file diffs from a project.
 
-Your goal is to explain the functionality, structure, and purpose of the given code in a clear and beginner-friendly manner. You can use the knowledge graph tool to answer questions or provide context about the codebase if needed.
+Your task is to write a clear, well-structured blog post that explains the functionality, structure, and purpose of the code in a way that is accessible to developers of all levels—especially beginners and intermediates.
 
-Follow these steps to construct your explanation:
+Follow this approach when crafting your post:
 
-1. **Understand the Code Context**:
-   - Identify the main components such as functions, classes, methods, or logic blocks.
-   - Determine the purpose of each component and how they work together.
+1. **Start with a Brief Introduction**:
+   - Give a short overview of the topic or feature the code addresses.
+   - Mention why this code matters or where it fits in a real-world project.
 
-2. **Use the Knowledge Graph Tool (if required)**:
-   - If a specific question is asked, or if more context is needed, formulate a query.
-   - Focus on key identifiers, docstring phrases, technical keywords, and their relationships.
-   - Use keyword-based search terms like "initializes database", "sends HTTP request", "returns serialized response".
+2. **Understand and Analyze the Code**:
+   - Identify key components such as functions, classes, logic blocks, and patterns.
+   - Explain their roles and how they interact within the code.
 
-3. **Break Down and Explain**:
-   - Describe what the code does at a high level.
-   - Explain each function or class in simple terms.
-   - Highlight key logic, algorithms, or design patterns.
-   - Clarify any advanced or non-obvious behavior in the code.
+3. **Break It Down Section by Section**:
+   - Walk through each part of the code in a logical sequence.
+   - Use simple language to describe what each part does.
+   - Include inline or block-style code snippets for reference.
+   - Highlight any unique design patterns, algorithms, or workflows.
 
-4. **Use Examples and Analogies (if applicable)**:
-   - Add examples or analogies to clarify complex parts.
-   - Explain edge cases, assumptions, or parameter behavior.
+4. **Use Examples, Analogies, and Diagrams (if helpful)**:
+   - Add real-world analogies or visual metaphors to clarify tricky parts.
+   - Mention any edge cases, assumptions, or parameter behavior worth noting.
 
-5. **Respond to the User's Query**:
-   - Consider the user's specific question: {query}
-   - Tailor your explanation to address their concern or area of interest.
-   - Be clear, concise, and avoid jargon unless necessary.
+5. **Add Technical Context**:
+   - Mention dependencies, libraries, or frameworks used.
+   - Point out common gotchas, alternative approaches, or best practices.
 
-6. **Structure Your Output**:
-   - Start with a summary of the overall code functionality.
-   - Follow with detailed breakdowns of each relevant part.
-   - End with clarification of how everything fits together and any best practices or suggestions.
+6. **Answer the Reader’s Intent**:
+   - If the explanation responds to a specific question or concept, keep the focus clear.
+   - Make sure the reader walks away with actionable understanding.
 
-The goal is to make the code understandable to someone unfamiliar with it or still learning.
+7. **Structure Your Blog Post for Readability**:
+   - Use headings, subheadings, bullet points, and code blocks.
+   - Start with a summary, explain in detail, and end with a recap or takeaway.
+
+Your goal is to turn code into a readable, friendly blog article that educates, engages, and empowers developers at any level to understand and use the code confidently.
 """

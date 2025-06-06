@@ -42,12 +42,9 @@ class ChatAgentResponse(BaseModel):
 
 class ChatContext(BaseModel):
     project_id: str
-    project_name: str
-    curr_agent_id: str
     history: List[str]
-    node_ids: Optional[List[str]] = None
-    additional_context: str = ""
     query: str
+    additional_context: str = ""
 
 
 class ChatAgent(ABC):
@@ -80,3 +77,17 @@ class AgentConfig(BaseModel):
     backstory: str
     tasks: List[TaskConfig]
     max_iter: int = 15
+
+class AgentInfo(BaseModel):
+    id: str
+    name: str
+    description: str
+    agent: str
+
+
+class AgentWithInfo:
+    def __init__(self, agent: ChatAgent, id: str, name: str, description: str):
+        self.id = id
+        self.name = name
+        self.description = description
+        self.agent = agent

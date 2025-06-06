@@ -9,6 +9,12 @@ import instructor
 import httpx
 from pydantic import BaseModel
 
+import json
+import logging
+import os
+from typing import Any
+from pydantic import BaseModel, ValidationError
+from mistralai import Mistral
 from app.core.config import config_provider
 
 litellm.num_retries = 5  
@@ -31,11 +37,10 @@ class AgentProvider(Enum):
 
 
 class ProviderService:
-    def __init__(self, db, user_id: str):
+    def __init__(self, db):
         litellm.modify_params = True
         self.db = db
         self.llm = None
-        self.user_id = user_id
 
 
 
@@ -48,47 +53,49 @@ class ProviderService:
         
 
     async def call_llm_with_structured_output(
-        self, messages: list, output_schema: type[BaseModel], config_type: str = "chat"
-    ) -> Any:
-        """Call LLM and parse the response into a structured output using a Pydantic model."""
-        # Select the appropriate config
-        import json
-        from mistralai import Mistral
+    self, messages: list, output_schema: type[BaseModel], config_type: str = "chat"
+) -> Any:
+            # """Call LLM and parse the response into a structured output using a Pydantic model."""
+            # print("REACHING CALL LLM WITH STRUCTURED OUTPUT")
+            # api_key = "I8dVoJSO5XmpMUcyIQ0KRiGNfduJRCM8"
+            # model = "mistral-large-latest"
+            # client = Mistral(api_key=api_key)
 
-        api_key = config_provider.get_llm_api_key()
-        if not api_key:
-            raise ValueError("LLM API key is not set in the configuration.")
-        
-        model = "mistral-large-latest"
+            # try:
+            #     # 🧠 Step 1: Make the LLM request
+            #     response = client.chat.complete(
+            #         model=model,
+            #         messages=messages,
+            #         response_format= {
+            #             "type": "json_object",
+            #         },  # ✅ Should be a string
+            #     )
 
-        client = Mistral(api_key=api_key)
+            #     raw = response.choices[0].message.content
+            #     logging.info(f"Raw LLM response: {raw}")
+            #     # 🧠 Step 2: Try parsing the response content
+            #     try:
+            #         parsed_data = json.loads(raw)
 
-# Initialize the client with your API key
-        
+            #         if isinstance(parsed_data, list):
+            #             parsed_data = {"docstrings": parsed_data}
 
-        try:
-            # Make the LLM request
-            response = client.chat.complete(
-                model=model,
-                messages=messages,
-                response_format={"type": "json_object"},
-            )
+            #     except json.JSONDecodeError as json_err:
+            #         logging.warning(f"Failed to parse JSON from response: {json_err}")
+            #         # ⛑️ Fallback: Return the raw string or log and exit
+            #         return {"error": "Failed to parse JSON", "raw_response": response.choices[0].message.content}
 
-            # Get the JSON string
-            raw = response.choices[0].message.content
-            logging.info(f"Raw LLM response: {raw}")
+            #     # 🧠 Step 3: Try validating the schema
+            #     try:
+            #         validated_output = output_schema.model_validate(parsed_data)
+            #         return validated_output
 
-            # Parse the JSON string into Python list
-            parsed_data = json.loads(raw)
+            #     except ValidationError as val_err:
+            #         logging.warning(f"Pydantic validation failed: {val_err}")
+            #         # ⛑️ Fallback: Return raw parsed data with errors
+            #         return {"error": "Validation failed", "parsed_data": parsed_data, "validation_errors": val_err.errors()}
 
-            # ✅ Ensure it's wrapped in a dict with "docstrings" key
-            if isinstance(parsed_data, list):
-                parsed_data = {"docstrings": parsed_data}
-
-            # ✅ Now validate the parsed_data against the Pydantic model
-            validated_output = output_schema.model_validate(parsed_data)
-            return validated_output
-
-        except Exception as e:
-            logging.error(f"LLM call with structured output failed: {e}")
-            raise e
+            # except Exception as e:
+            #     logging.error(f"LLM call failed. Messages: {messages}, Error: {e}")
+            #     return {"error": "LLM call failed", "exception": str(e)}
+            pass

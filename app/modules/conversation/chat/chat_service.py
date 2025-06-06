@@ -20,6 +20,10 @@ from .message_schema import (
     MessageType,
     ChatMessageResponse
 )
+from app.modules.agents.agent_schema import ChatContext
+from app.modules.agents.agent_service import AgentsService
+from app.modules.provider.provider_service import ProviderService
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +53,7 @@ class ChatService:
         self.project_id = project_id
         self.user_id = user_id
         self.sql_db = sql_db
+        self.agent_service = AgentsService(sql_db,user_id,ProviderService(sql_db))  # Placeholder for agent service, to be set externally
         self.mongo_collection = mongo_db["chat"]
         self.conversation: Optional[Conversation] = None
         self.message_buffer: Dict[str, Dict[str, str]] = {}
@@ -120,26 +125,17 @@ class ChatService:
 
             logger.info(f"Stored message for conversation: {message.conversation_id}")
 
-            # Step 3: Generate AI response (not stored)
-            full_message = ""
-            all_citations = []
 
             async for chunk in self._generate_and_stream_ai_response(
                 message.content,
                 message.conversation_id,
                 user_id,
+                project_id=project_id,
             ):
-                full_message += chunk.message
-                all_citations.extend(chunk.citations or [])
+                yield chunk
+               
 
-            logger.info(f"Generated AI response for conversation: {message.conversation_id}")
-
-            # Step 4: Yield the AI response
-            yield ChatMessageResponse(
-                message=full_message,
-                citations=all_citations,
-                tool_calls=[],
-            )
+          
 
         except Exception as e:
             logger.error(f"Failed to post message for conversation {message.conversation_id}: {e}", exc_info=True)
@@ -169,7 +165,9 @@ class ChatService:
         query: str,
         conversation_id: str,
         user_id: str,
+        project_id: str,
     ):
+        print("project",project_id)
         """
         Streams AI-generated responses using agent_service, 
         buffering each chunk and flushing at the end.
@@ -177,7 +175,7 @@ class ChatService:
         try:
             # Step 1: Get and validate history
             try:
-                history = await self.get_session_history(user_id, conversation_id)
+                history = await self.get_session_history(user_id)
                 validated_history = [
                     f"{msg.type}: {msg.content}" if hasattr(msg, "content") else str(msg)
                     for msg in history
@@ -187,19 +185,24 @@ class ChatService:
                 raise ConversationServiceError("Failed to get chat history")
 
             # Step 2: Start streaming from the agent service
+            logger.debug(f"Calling execute_stream with query: {query} and history: {validated_history[-8:]}")
             res = self.agent_service.execute_stream(
                 ChatContext(
+                    project_id=str(project_id),
                     history=validated_history[-8:],  # Only the last 8 messages
-                    query=query,
+                    query=query,  
                 )
             )
 
             async for chunk in res:
+                logger.debug(f"Received chunk: {chunk}")
+                content = getattr(chunk, "response", "")
+                citations = getattr(chunk, "citations", [])
                 self.add_message_chunk(
                     conversation_id=conversation_id,
-                    content=chunk.response,
+                    content=content,
                     message_type=MessageType.AI_GENERATED,
-                    citations=chunk.citations,
+                    citations=citations,
                 )
 
                 yield ChatMessageResponse(
@@ -207,9 +210,10 @@ class ChatService:
                     citations=chunk.citations,
                     tool_calls=[
                         tool_call.model_dump_json()
-                        for tool_call in chunk.tool_calls
+                        for tool_call in getattr(chunk, "tool_calls", [])
                     ],
                 )
+                print(f"Streaming chunk: {chunk}")
 
             # Step 3: Flush all collected AI-generated chunks
             await self.flush_message_buffer(
@@ -275,11 +279,11 @@ class ChatService:
             self.message_buffer[conversation_id] = {"content": "", "citations": []}
             logger.info(f"Flushed message buffer for conversation: {conversation_id}")
 
-    async def get_session_history(self, user_id: str, conversation_id: str) -> List[BaseMessage]:
+    async def get_session_history(self, user_id: str) -> List[BaseMessage]:
         try:
             cursor = self.mongo_collection.find(
                 {
-                    "conversation_id": conversation_id,
+                    "conversation_id": self.conversation.id,
                     "status": "ACTIVE"
                 }
             ).sort("created_at", 1)  # Sort by oldest first
@@ -291,7 +295,7 @@ class ChatService:
                 else:
                     history.append(AIMessage(content=doc["content"]))
 
-            logger.info(f"Retrieved session history for conversation: {conversation_id}")
+            logger.info(f"Retrieved session history for conversation: ")
             return history
 
         except Exception as e:

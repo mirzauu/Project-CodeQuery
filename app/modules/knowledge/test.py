@@ -139,10 +139,8 @@ class RepoMap:
             self.io.tool_error(f"File not found error: {fname}")
 
     def get_tags(self, fname, rel_fname):
-        print("get_tag",fname,rel_fname)
         # Check if the file is in the cache and if the modification time has not changed
         file_mtime = self.get_mtime(fname)
-        print("file_mtime",file_mtime)
         if file_mtime is None:
             return []
 
@@ -675,7 +673,6 @@ class RepoMap:
         defines = defaultdict(set)
         references = defaultdict(set)
         seen_relationships = set()
-        print(G,defines,references,seen_relationships,repo_dir)
         for root, dirs, files in os.walk(repo_dir):
             if any(part.startswith(".") for part in root.split(os.sep)):
                 continue
@@ -683,7 +680,6 @@ class RepoMap:
             for file in files:
                 file_path = os.path.join(root, file)
                 rel_path = os.path.relpath(file_path, repo_dir)
-                print("relpath",rel_path)
                 if not self.is_text_file(file_path):
                     continue
 
@@ -782,8 +778,7 @@ class RepoMap:
         print("start relation")
         for ident, refs in references.items():
             target_nodes = defines.get(ident, set())
-            print("Defines:", dict(defines))
-            print("References:", dict(references))
+    
             for source, line, end_line, src_class, src_method in refs:
                 for target in target_nodes:
                     if source == target:
@@ -1913,16 +1908,21 @@ import shutil
 from git import Repo
 # Define dummy repo and user info
 def clone_repo(git_url):
-    temp_dir = tempfile.mkdtemp()
-    Repo.clone_from(git_url, temp_dir)
-    return temp_dir
+    repo_url = git_url
+    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    user_repo_path = os.path.join(repo_name)
+
+    Path(user_repo_path).parent.mkdir(parents=True, exist_ok=True)
+
+    Repo.clone_from(git_url, user_repo_path)
+    return user_repo_path
 
 
-# repo_dir =clone_repo("https://github.com/mirzauu/potpie")  # Replace with a real path
-project_id = "test_project_1"
-# user_id = "user_123"
-# # --- Run graph creation ---
-# graph_service.create_and_store_graph(repo_dir, project_id, user_id)
+repo_dir =clone_repo("https://github.com/mirzauu/User-Authentication-System")  # Replace with a real path
+project_id = "test_project_2"
+user_id = "alimirsa"
+# --- Run graph creation ---
+graph_service.create_and_store_graph(repo_dir, project_id, user_id)
 
 # # --- Test node query ---
 # from hashlib import md5
