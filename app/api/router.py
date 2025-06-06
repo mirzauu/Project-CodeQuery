@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException,status
 from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import StreamingResponse
+import json
 
 from app.core.db.postgress_db import get_db
 from app.core.db.mongo_db import get_mongo_db, AsyncIOMotorDatabase
@@ -14,8 +16,6 @@ from app.modules.conversation.chat.chat_service import ChatService
 from app.modules.knowledge.parsing_service import ParsingService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
 
 @router.post("/send-otp")
 def send_otp(data: UserCreate, db: Session = Depends(get_db)):
@@ -48,18 +48,17 @@ async def send_message(
     project_id: str,
     body: MessageInput,
     user_id=Depends(UserService.check_auth),
-    db: Session = Depends(get_db),  # sync session
+    db: Session = Depends(get_db),
     mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ):
-    if body.content == "" or body.content is None or body.content.isspace():
+    if body.content is None or body.content.strip() == "":
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
-    
+
     try:
         # Init chat service
         chat_service = ChatService(project_id=project_id, user_id=user_id.uid, sql_db=db, mongo_db=mongo_db)
-        chat_service.init()  # sync call
+        chat_service.init()
 
-        # Create message
         message_data = MessageCreate(
             conversation_id=chat_service.conversation.id,
             content=body.content,
@@ -67,10 +66,17 @@ async def send_message(
             sender_id=user_id.uid
         )
 
-        message_stream = chat_service.post_message(message_data,project_id, user_id.uid)
-        async for chunk in message_stream:
-        
-           return chunk
+        # Create the async generator
+        message_stream = chat_service.post_message(message_data, project_id, user_id.uid)
+
+        async def stream_response():
+            async for chunk in message_stream:
+                yield (json.dumps(chunk.model_dump()) + "\n")
+
+        return StreamingResponse(stream_response(), media_type="application/json")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
         
     except Exception as e:
         raise HTTPException(

@@ -195,7 +195,7 @@ class ChatService:
             )
 
             async for chunk in res:
-                logger.debug(f"Received chunk: {chunk}")
+                print(f"Received chunk: {chunk}")
                 content = getattr(chunk, "response", "")
                 citations = getattr(chunk, "citations", [])
                 self.add_message_chunk(

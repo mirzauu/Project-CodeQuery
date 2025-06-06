@@ -1,37 +1,41 @@
-import re
-from typing import List, AsyncGenerator
 import logging
+import re
+from typing import AsyncGenerator, List
 
+from langchain_core.tools import StructuredTool
+from pydantic_ai import Agent, Tool
+from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+    ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+)
+from pydantic_ai.models.groq import GroqModel
+from pydantic_ai.models.mistral import MistralModel
+from pydantic_ai.providers.groq import GroqProvider
+from pydantic_ai.providers.mistral import MistralProvider
+
+from app.core.config import config_provider
+from app.modules.provider.provider_service import ProviderService
 from app.modules.tools.tool_helper import (
     get_tool_call_info_content,
     get_tool_response_message,
     get_tool_result_info_content,
     get_tool_run_message,
 )
-from app.modules.provider.provider_service import (
-    ProviderService,
+from ..agent_schema import (
+    AgentConfig,
+    ChatAgent,
+    ChatAgentResponse,
+    ChatContext,
+    TaskConfig,
+    ToolCallEventType,
+    ToolCallResponse,
 )
-from ..agent_schema import ChatAgent, ChatAgentResponse, ChatContext,AgentConfig,TaskConfig, ToolCallEventType,ToolCallResponse
 
-
-
-
-from pydantic_ai import Agent, Tool
-from pydantic_ai.messages import (
-    FunctionToolCallEvent,
-    FunctionToolResultEvent,
-    PartStartEvent,
-    PartDeltaEvent,
-    TextPartDelta,
-    ModelResponse,
-    TextPart,
-)
-from langchain_core.tools import StructuredTool
-
-from pydantic_ai.models.groq import GroqModel
-from pydantic_ai.providers.groq import GroqProvider
-from pydantic_ai.models.mistral import MistralModel
-from pydantic_ai.providers.mistral import MistralProvider 
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +60,7 @@ class PydanticRagAgent(ChatAgent):
         self.agent = Agent(
             model=MistralModel(
                 model_name="mistral-large-latest",
-                provider=MistralProvider(api_key="I8dVoJSO5XmpMUcyIQ0KRiGNfduJRCM8")
+                provider=MistralProvider(api_key = config_provider.get_llm_api_key())
             ),
             tools=[
                 Tool(
@@ -175,34 +179,50 @@ class PydanticRagAgent(ChatAgent):
                         async with node.stream(run.ctx) as handle_stream:
                             async for event in handle_stream:
                                 if isinstance(event, FunctionToolCallEvent):
-                                    summary = f"Calling `{event.part.tool_name}` with args: {event.part.args_as_dict()}"
-                                    tool_call = ToolCallResponse(
-                                        call_id=event.part.tool_call_id or "",
-                                        event_type="call",
-                                        tool_name=event.part.tool_name,
-                                        tool_response="Running tool...",
-                                        tool_call_details={"summary": summary},
-                                    )
-
                                     yield ChatAgentResponse(
                                         response="",
-                                        tool_calls=[tool_call],
+                                        tool_calls=[
+                                            ToolCallResponse(
+                                                call_id=event.part.tool_call_id or "",
+                                                event_type=ToolCallEventType.CALL,
+                                                tool_name=event.part.tool_name,
+                                                tool_response=get_tool_run_message(
+                                                    event.part.tool_name
+                                                ),
+                                                tool_call_details={
+                                                    "summary": get_tool_call_info_content(
+                                                        event.part.tool_name,
+                                                        event.part.args_as_dict(),
+                                                    )
+                                                },
+                                            )
+                                        ],
                                         citations=[],
                                     )
+                               
                             
                                 if isinstance(event, FunctionToolResultEvent):
-                                    summary = f"Calling `{event.result.tool_name}` with args: {event.result.content}"
-                                    tool_call=ToolCallResponse(
-                                        call_id=event.result.tool_call_id or "",
-                                        event_type="call",
-                                        tool_name=event.result.tool_name,
-                                        tool_response="Running tool...",
-                                        tool_call_details={"summary": summary},
-                                    )
-
                                     yield ChatAgentResponse(
                                         response="",
-                                        tool_calls=[tool_call],
+                                        tool_calls=[
+                                            ToolCallResponse(
+                                                call_id=event.result.tool_call_id or "",
+                                                event_type=ToolCallEventType.RESULT,
+                                                tool_name=event.result.tool_name
+                                                or "unknown tool",
+                                                tool_response=get_tool_response_message(
+                                                    event.result.tool_name
+                                                    or "unknown tool"
+                                                ),
+                                                tool_call_details={
+                                                    "summary": get_tool_result_info_content(
+                                                        event.result.tool_name
+                                                        or "unknown tool",
+                                                        event.result.content,
+                                                    )
+                                                },
+                                            )
+                                        ],
                                         citations=[],
                                     )
 

@@ -2,14 +2,14 @@ import os
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
-load_dotenv(override=True)
+from app.core.config import config_provider
 
-MONGO_URI = "mongodb+srv://ainypus:3mz1b0dZcWKPYxtZ@cluster0.ksi9c62.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+mongo_config = config_provider.get_mongo_config()
 
-# Create a global client
-mongo_client = AsyncIOMotorClient(MONGO_URI)
-db: AsyncIOMotorDatabase = mongo_client["tfo"]  # Async database
-chat_collection = db["chat"]  # Async collection
+# Create a global MongoDB client and database reference
+mongo_client = AsyncIOMotorClient(mongo_config["uri"])
+db: AsyncIOMotorDatabase = mongo_client[mongo_config["db_name"]]
+chat_collection = db["chat"]
 
 # Dependency to be used in FastAPI
 async def get_mongo_db() -> AsyncIOMotorDatabase:

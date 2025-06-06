@@ -3,22 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-EMAIL_FROM = os.getenv("EMAIL_FROM", SMTP_USER)
-
-
-NEO4J_URI=os.getenv("NEO4J_URI")
-NEO4J_USERNAME=os.getenv("NEO4J_USERNAME")
-NEO4J_PASSWORD=os.getenv("NEO4J_PASSWORD")
-
-JWT_SECRET=''
-
-JWT_ALGORITHM=''
-
-LLM_API_KEY = os.getenv("LLM_API_KEY", "your_default_llm_api_key")
 
 class ConfigProvider:
     def __init__(self):
@@ -32,7 +16,32 @@ class ConfigProvider:
         return self.neo4j_config
 
     def get_llm_api_key(self):
-        return os.getenv("LLM_API_KEY", "your_default_llm_api_key")    
-    
+        return os.getenv("LLM_API_KEY", "your_default_llm_api_key")
 
-config_provider = ConfigProvider()        
+    def get_smtp_config(self):
+        smtp_user = os.getenv("SMTP_USER")
+        return {
+            "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
+            "port": int(os.getenv("SMTP_PORT", 587)),
+            "user": smtp_user,
+            "password": os.getenv("SMTP_PASSWORD"),
+            "email_from": os.getenv("EMAIL_FROM", smtp_user),
+        }
+
+    def get_jwt_config(self):
+        return {
+            "secret_key": os.getenv("JWT_SECRET", "your-secret-key"),
+            "algorithm": os.getenv("JWT_ALGORITHM", "HS256"),
+            "access_token_expire_minutes": int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 300)),
+        }
+    
+    def get_mongo_config(self):
+        return {
+            "uri": os.getenv("MONGO_URI", "mongodb://localhost:27017"),
+            "db_name": os.getenv("MONGO_DB_NAME", "tfo"),
+        }
+
+
+
+
+config_provider = ConfigProvider()

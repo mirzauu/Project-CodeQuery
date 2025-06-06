@@ -1,23 +1,26 @@
 import smtplib
 from email.message import EmailMessage
-from .config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
+
+from .config import config_provider
 
 def send_email_otp(recipient_email: str, otp: str):
+    smtp_config = config_provider.get_smtp_config()
+
     subject = "Your OTP Code"
     body = f"Your OTP code is: {otp}\nThis will expire in 10 minutes."
 
     msg = EmailMessage()
-    msg["From"] = EMAIL_FROM
+    msg["From"] = smtp_config["email_from"]
     msg["To"] = recipient_email
     msg["Subject"] = subject
     msg.set_content(body)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(smtp_config["host"], smtp_config["port"]) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.login(smtp_config["user"], smtp_config["password"])
             server.send_message(msg)
-        print(f"✅ OTP sent to {recipient_email}{otp}")
+        print(f"✅ OTP sent to {recipient_email} - {otp}")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
         raise
