@@ -1,10 +1,11 @@
-from .framework.pydantic_agent import PydanticRagAgent
-from app.modules.provider.provider_service import (
-    ProviderService,
-)
-from .agent_schema import ChatAgent, ChatAgentResponse, ChatContext,AgentConfig,TaskConfig
 from typing import AsyncGenerator
+
+from app.modules.provider.provider_service import ProviderService
 from app.modules.tools.tool_service import ToolService
+
+from .agent_schema import AgentConfig, ChatAgent, ChatAgentResponse, ChatContext, TaskConfig
+from .framework.pydantic_agent import PydanticRagAgent
+
 
 class QnAAgent(ChatAgent):
     def __init__(

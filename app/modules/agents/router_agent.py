@@ -1,15 +1,17 @@
+import logging
 from typing import AsyncGenerator, Dict
+
+from pydantic import BaseModel, Field
+
+from app.modules.provider.provider_service import ProviderService
+
 from .agent_schema import (
+    AgentConfig,
+    ChatAgent,
     ChatAgentResponse,
     ChatContext,
-    ChatAgent,
-    AgentConfig,
 )
-from app.modules.provider.provider_service import (
-    ProviderService,
-)
-from pydantic import BaseModel, Field
-import logging
+
 
 logger = logging.getLogger(__name__)
 

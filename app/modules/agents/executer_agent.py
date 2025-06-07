@@ -1,9 +1,9 @@
-from app.modules.provider.provider_service import (
-    ProviderService,
-)
-from .router_agent import RouterAgent
-from .agent_schema import ChatAgent, ChatAgentResponse, ChatContext, AgentConfig
 from typing import AsyncGenerator, Dict
+
+from app.modules.provider.provider_service import ProviderService
+
+from .agent_schema import AgentConfig, ChatAgent, ChatAgentResponse, ChatContext
+from .router_agent import RouterAgent
 
 
 
