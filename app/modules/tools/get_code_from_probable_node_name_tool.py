@@ -11,9 +11,11 @@ from app.core.config import config_provider
 from app.modules.code_provider.code_provider_service import CodeProviderService
 from app.modules.conversation.project.project_model import Project
 from app.modules.conversation.project.project_service import ProjectService
+from app.modules.conversation.project.search_service import SearchService
+
+
 
 logger = logging.getLogger(__name__)
-
 
 class GetCodeFromProbableNodeNameInput(BaseModel):
     project_id: str = Field(description="The project ID, this is a UUID")
@@ -44,6 +46,7 @@ class GetCodeFromProbableNodeNameTool:
         self.sql_db = sql_db
         self.user_id = user_id
         self.neo4j_driver = self._create_neo4j_driver()
+        self.search_service = SearchService(self.sql_db)
 
     def _create_neo4j_driver(self) -> GraphDatabase.driver:
         neo4j_config = config_provider.get_neo4j_config()
@@ -59,9 +62,17 @@ class GetCodeFromProbableNodeNameTool:
             node_id_query = " ".join(
                 probable_node_name.replace("/", " ").replace(":", " ").split()
             )
-          
+            relevance_search = await self.search_service.search_codebase(
+                project_id, node_id_query
+            )
             node_id = None
-            
+            if relevance_search:
+                node_id = relevance_search[0]["node_id"]
+
+            if not node_id:
+                return {
+                    "error": f"Node with name '{probable_node_name}' not found in project '{project_id}'"
+                }
 
             return await self.execute(project_id, node_id)
         except Exception as e:

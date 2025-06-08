@@ -101,7 +101,7 @@ class ParsingService:
                         self.db,
                     )
 
-                    code_graph_service.cleanup_graph(project_id)
+                    # code_graph_service.cleanup_graph(project_id)
                 except Exception as e:
                     logger.error(f"Error in cleanup_graph: {e}")
                     raise HTTPException(status_code=500, detail="Internal server error")

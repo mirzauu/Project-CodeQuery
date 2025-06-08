@@ -20,7 +20,7 @@ from app.modules.knowledge.schema.inference_schema import (
 
 from app.core.config import config_provider
 from app.modules.conversation.project.project_service import ProjectService
-# from app.modules.search.search_service import SearchService
+from app.modules.conversation.project.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class InferenceService:
 
         self.provider_service = ProviderService(db)
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-        # self.search_service = SearchService(db)
+        self.search_service = SearchService(db)
         self.project_manager = ProjectService(db)
         self.parallel_requests = int(os.getenv("PARALLEL_REQUESTS", 50))
 
@@ -433,27 +433,27 @@ class InferenceService:
         ]
 
         # Perform bulk insert
-        # await self.search_service.bulk_create_search_indices(nodes_to_index)
+        await self.search_service.bulk_create_search_indices(nodes_to_index)
 
         logger.info(
             f"Project {repo_id}: Created search indices over {len(nodes_to_index)} nodes"
         )
 
-        # await self.search_service.commit_indices()
-        # entry_points = self.get_entry_points(repo_id)
-        # logger.info(
-        #     f"DEBUGNEO4J: After get entry points, Repo ID: {repo_id}, Entry points: {len(entry_points)}"
-        # )
-        # self.log_graph_stats(repo_id)
-        # entry_points_neighbors = {}
-        # for entry_point in entry_points:
-        #     neighbors = self.get_neighbours(entry_point, repo_id)
-        #     entry_points_neighbors[entry_point] = neighbors
+        await self.search_service.commit_indices()
+        entry_points = self.get_entry_points(repo_id)
+        logger.info(
+            f"DEBUGNEO4J: After get entry points, Repo ID: {repo_id}, Entry points: {len(entry_points)}"
+        )
+        self.log_graph_stats(repo_id)
+        entry_points_neighbors = {}
+        for entry_point in entry_points:
+            neighbors = self.get_neighbours(entry_point, repo_id)
+            entry_points_neighbors[entry_point] = neighbors
 
-        # logger.info(
-        #     f"DEBUGNEO4J: After get neighbours, Repo ID: {repo_id}, Entry points neighbors: {len(entry_points_neighbors)}"
-        # )
-        # self.log_graph_stats(repo_id)
+        logger.info(
+            f"DEBUGNEO4J: After get neighbours, Repo ID: {repo_id}, Entry points neighbors: {len(entry_points_neighbors)}"
+        )
+        self.log_graph_stats(repo_id)
         batches = self.batch_nodes(nodes)
         all_docstrings = {"docstrings": []}
 
@@ -481,9 +481,9 @@ class InferenceService:
                     f"Project {repo_id}: Invalid response from during inference. Manually verify the project completion."
                 )
 
-        # updated_docstrings = await self.generate_docstrings_for_entry_points(
-        #     all_docstrings, entry_points_neighbors
-        # )
+        updated_docstrings = await self.generate_docstrings_for_entry_points(
+            all_docstrings, entry_points_neighbors
+        )
         updated_docstrings = all_docstrings
         return updated_docstrings
 

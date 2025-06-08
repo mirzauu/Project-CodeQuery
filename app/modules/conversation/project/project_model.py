@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    Integer
 )
 from sqlalchemy.dialects.postgresql import BYTEA
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -33,8 +34,24 @@ class Project(Base):
     status = Column(String(255), default="created")
 
     user = relationship("User", back_populates="projects")
+    search_indices = relationship("SearchIndex", back_populates="project", cascade="all, delete-orphan")
+
 
     __table_args__ = (
         ForeignKeyConstraint(["user_id"], ["users.uid"], ondelete="CASCADE"),
         CheckConstraint("status IN ('submitted', 'cloned', 'parsed', 'ready', 'error')", name="check_status"),
     )
+
+
+
+class SearchIndex(Base):
+    __tablename__ = "search_indices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Text, ForeignKey("projects.id"), index=True)
+    node_id = Column(String, index=True)
+    name = Column(String, index=True)
+    file_path = Column(String, index=True)
+    content = Column(Text)
+
+    project = relationship("Project", back_populates="search_indices")

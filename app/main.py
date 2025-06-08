@@ -28,12 +28,7 @@ class PreflightCacheMiddleware(BaseHTTPMiddleware):
 class MainApp:
     def __init__(self):
         load_dotenv(override=True)
-        if (
-            os.getenv("isDevelopmentMode") == "enabled"
-            and os.getenv("ENV") != "development"
-        ):
-            logging.error("Development mode is enabled  but ENV is not development.")
-            exit(1)
+
 
         self.app = FastAPI(title="RepoPlay API", version="1.0")
         self.setup_cors()
