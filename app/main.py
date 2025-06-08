@@ -3,9 +3,27 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.core.db.postgress_db import engine, Base, SessionLocal
 from app.api.router import router as auth_router  # Add your actual routers here
+
+class PreflightCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Handle only OPTIONS requests (preflight)
+        if request.method == "OPTIONS":
+            response = Response(status_code=200)
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Max-Age"] = "600"  # 10 minutes
+            return response
+
+        # Let other requests pass through
+        response = await call_next(request)
+        return response
 
 class MainApp:
     def __init__(self):
@@ -24,6 +42,8 @@ class MainApp:
         self.add_health_check()
 
     def setup_cors(self):
+        self.app.add_middleware(PreflightCacheMiddleware)
+        
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],  # Update this for production
