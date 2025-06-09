@@ -120,6 +120,7 @@ class RepoMap:
         pass
 
     def get_mtime(self, fname):
+    
         try:
             return os.path.getmtime(fname)
         except FileNotFoundError:
@@ -132,24 +133,30 @@ class RepoMap:
             return []
 
         data = list(self.get_tags_raw(fname, rel_fname))
-
+  
         return data
 
     def get_tags_raw(self, fname, rel_fname):
         lang = filename_to_lang(fname)
+        print(f"[DEBUG] Lang for {fname}: {lang}")
         if not lang:
             return
 
         language = get_language(lang)
         parser = get_parser(lang)
+        print(f"[DEBUG] Language: {language}, Parser: {parser}")
 
         query_scm = get_scm_fname(lang)
+     
+
         if not query_scm.exists():
             return
         query_scm = query_scm.read_text()
 
         code = self.io.read_text(fname)
+        
         if not code:
+            print("not code")
             return
         tree = parser.parse(bytes(code, "utf-8"))
 
@@ -157,6 +164,7 @@ class RepoMap:
         query = language.query(query_scm)
         captures = query.captures(tree.root_node)
         captures = list(captures)
+        print(f"[DEBUG] {len(captures)} captures found")
         saw = set()
 
         for node, tag in captures:
@@ -575,13 +583,84 @@ class RepoMap:
             return True
 
         return False
+    
+    def is_text_file(self, file_path):
+        def open_text_file(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    f.read(1024)
+                return True
+            except UnicodeDecodeError:
+                return False
 
+        ext = file_path.split(".")[-1]
+        exclude_extensions = [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "bmp",
+            "tiff",
+            "webp",
+            "ico",
+            "svg",
+            "mp4",
+            "avi",
+            "mov",
+            "wmv",
+            "flv",
+            "ipynb",
+        ]
+        include_extensions = [
+            "py",
+            "js",
+            "ts",
+            "c",
+            "cs",
+            "cpp",
+            "el",
+            "ex",
+            "exs",
+            "elm",
+            "go",
+            "java",
+            "ml",
+            "mli",
+            "php",
+            "ql",
+            "rb",
+            "rs",
+            "md",
+            "txt",
+            "json",
+            "yaml",
+            "yml",
+            "toml",
+            "ini",
+            "cfg",
+            "conf",
+            "xml",
+            "html",
+            "css",
+            "sh",
+            "md",
+            "mdx",
+            "xsq",
+            "proto",
+        ]
+        if ext in exclude_extensions:
+            return False
+        elif ext in include_extensions or open_text_file(file_path):
+            return True
+        else:
+            return False
+        
     def create_graph(self, repo_dir):
+        print("start creating graph")
         G = nx.MultiDiGraph()
         defines = defaultdict(set)
         references = defaultdict(set)
         seen_relationships = set()
-
         for root, dirs, files in os.walk(repo_dir):
             if any(part.startswith(".") for part in root.split(os.sep)):
                 continue
@@ -589,8 +668,7 @@ class RepoMap:
             for file in files:
                 file_path = os.path.join(root, file)
                 rel_path = os.path.relpath(file_path, repo_dir)
-
-                if not self.parse_helper.is_text_file(file_path):
+                if not self.is_text_file(file_path):
                     continue
 
                 logging.info(f"\nProcessing file: {rel_path}")
@@ -598,6 +676,7 @@ class RepoMap:
                 # Add file node
                 file_node_name = rel_path
                 if not G.has_node(file_node_name):
+                    print("g")
                     G.add_node(
                         file_node_name,
                         file=rel_path,
@@ -607,13 +686,17 @@ class RepoMap:
                         end_line=0,
                         name=rel_path.split("/")[-1],
                     )
+                    
 
                 current_class = None
                 current_method = None
 
                 # Process all tags in file
-                for tag in self.get_tags(file_path, rel_path):
+                tags = self.get_tags(file_path, rel_path)
+                
+                for tag in tags:
                     if tag.kind == "def":
+                        print("tags",tags)
                         if tag.type == "class":
                             node_type = "CLASS"
                             current_class = tag.name
@@ -656,6 +739,7 @@ class RepoMap:
                                     ident=tag.name,
                                 )
                                 seen_relationships.add(rel_key)
+                                logging.info(f"Added edge: {file_node_name} -> {node_name} (CONTAINS)")
 
                         # Record definition
                         defines[tag.name].add(node_name)
@@ -678,10 +762,11 @@ class RepoMap:
                                 current_method,
                             )
                         )
-
+                        
+        print("start relation")
         for ident, refs in references.items():
             target_nodes = defines.get(ident, set())
-
+    
             for source, line, end_line, src_class, src_method in refs:
                 for target in target_nodes:
                     if source == target:
@@ -804,3 +889,5 @@ def get_scm_fname(lang):
         )
     except KeyError:
         return
+
+

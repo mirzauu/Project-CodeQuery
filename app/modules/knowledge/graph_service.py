@@ -10,6 +10,7 @@ from .repomap import RepoMap
 
 
 
+
 class CodeGraphService:
     def __init__(self, neo4j_uri, neo4j_user, neo4j_password, db: Session):
         self.driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
@@ -31,15 +32,6 @@ class CodeGraphService:
 
     def close(self):
         self.driver.close()
-    # def cleanup_graph(self,a):
-    #     with self.driver.session() as session:
-    #         session.run(
-    #             """
-    #             MATCH (n {repoId: $project_id})
-    #             DETACH DELETE n
-    #             """,
-    #             project_id=a,
-    #         )
 
     def create_and_store_graph(self, repo_dir, project_id, user_id):
         # Create the graph using RepoMap
@@ -189,7 +181,6 @@ class CodeGraphService:
         with self.driver.session() as session:
             result = session.run(query)
             return [record.data() for record in result]
-
 
 class SimpleIO:
     def read_text(self, fname):

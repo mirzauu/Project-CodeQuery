@@ -199,7 +199,7 @@ class ParsingService:
          
               
             except Exception as e:
-                logger.error(e)
+                logger.error(f"error: After inference project {e}")
                 logger.error(traceback.format_exc())
                 await self.project_service.update_project_status(
                     project_id, ProjectStatusEnum.ERROR

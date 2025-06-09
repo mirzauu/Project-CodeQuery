@@ -235,6 +235,12 @@ class ParseHelper:
                 for file in files:
                     file_path = os.path.join(root, file)
                     ext = os.path.splitext(file)[1].lower()
+                    # Skip common binary file types
+                    if ext in [
+                        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp", ".ico",
+                        ".pyc", ".pyo", ".exe", ".dll", ".so", ".a", ".o", ".class", ".jar", ".zip", ".tar", ".gz"
+                    ]:
+                        continue
                     try:
                         with open(file_path, "r", encoding="utf-8") as f:
                             content = f.read()

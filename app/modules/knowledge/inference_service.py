@@ -607,7 +607,7 @@ class InferenceService:
                 }
                 for n in docstrings.docstrings
             ]
-            project = self.project_manager.get_project_from_db_by_id_sync(repo_id)
+            project = self.project_manager.get_project_from_db_by_id(repo_id)
             repo_path = project.repo_path
             is_local_repo = True if repo_path else False
             for i in range(0, len(docstring_list), batch_size):
