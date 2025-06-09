@@ -1,6 +1,8 @@
 # Repoplay
 
-![Repoplay Logo](link-to-your-logo.png)
+<p align="center">
+  <img src="app/assets/LOGO.png" alt="Repoplay Logo" width="120" height="120" style="border-radius: 50%; object-fit: cover;" />
+</p>
 
 **Repoplay** is an AI-Powered Git Repository Assistant that allows users to connect any public GitHub repository and interact with it using natural language. Simply input the repo URL, and Repoplay helps you explore, understand, and query the project using powerful language models and graph-based reasoning.
 
