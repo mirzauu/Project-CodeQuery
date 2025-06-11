@@ -6,8 +6,22 @@
 
 **Repoplay** is an AI-Powered Git Repository Assistant that allows users to connect any public GitHub repository and interact with it using natural language. Simply input the repo URL, and Repoplay helps you explore, understand, and query the project using powerful language models and graph-based reasoning.
 
-🎥 **Demo Video**  
-[![Watch the demo](link-to-demo-thumbnail.jpg)](https://link-to-your-demo-video.com)
+## 🎥 Demo Video
+
+[![Watch the demo](app/assets/demo.png)](https://www.loom.com/share/b04beacb6a31409f9e012098c988d943?sid=6418620e-1b6d-4f7c-884d-10e7dba7b5a7)
+
+▶️ [Click here to watch the full video demo](https://www.loom.com/share/b04beacb6a31409f9e012098c988d943?sid=6418620e-1b6d-4f7c-884d-10e7dba7b5a7)
+
+---
+
+## 🖼 Screenshots
+
+<p align="center">
+  <img src="app/assets/s1.png" alt="Screenshot 1" width="220"/>
+  <img src="app/assets/s2.png" alt="Screenshot 2" width="220"/>
+  <img src="app/assets/s3.png" alt="Screenshot 3" width="220"/>
+  <img src="app/assets/s4.png" alt="Screenshot 4" width="220"/>
+</p>
 
 ---
 
@@ -192,51 +206,6 @@ Interactive API docs available at:
 
 Interactive documentation available at:  
 👉 [http://localhost:8000/docs](http://localhost:8000/docs)
-
-### Example Endpoints
-
-#### 🔐 Register User
-
-- `POST /auth/register`
-
-```json
-{
-  "email": "user@example.com",
-  "password": "yourpassword"
-}
-```
-
-#### 🔐 Login
-
-- `POST /auth/login`
-
-```json
-{
-  "email": "user@example.com",
-  "password": "yourpassword"
-}
-```
-
-#### 🔗 Connect GitHub Repo
-
-- `POST /repo/connect`
-
-```json
-{
-  "repo_url": "https://github.com/owner/repo"
-}
-```
-
-#### ❓ Ask a Question
-
-- `POST /repo/query`
-
-```json
-{
-  "repo_id": "abc123",
-  "question": "What is the purpose of the utils.py file?"
-}
-```
 
 ---
 
