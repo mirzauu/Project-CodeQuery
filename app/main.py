@@ -10,12 +10,12 @@ from starlette.responses import Response
 from app.core.db.postgress_db import engine, Base, SessionLocal
 from app.api.router import router as auth_router  # Add your actual routers here
 
-# Setup logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# # Setup logging
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+# )
+# logger = logging.getLogger(__name__)
 
 
 class PreflightCacheMiddleware(BaseHTTPMiddleware):

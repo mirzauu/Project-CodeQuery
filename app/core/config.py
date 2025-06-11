@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
+import logging
+logger = logging.getLogger(__name__)
 
 class ConfigProvider:
     def __init__(self):
@@ -13,6 +14,7 @@ class ConfigProvider:
         }
 
     def get_neo4j_config(self):
+        logger.info(f"DEBUGNEO4J: Neo4j connection {self.neo4j_config}")
         return self.neo4j_config
 
     def get_llm_api_key(self):
@@ -37,7 +39,7 @@ class ConfigProvider:
     
     def get_mongo_config(self):
         return {
-            "uri": os.getenv("MONGO_URI", "mongodb://localhost:27017"),
+            "uri": "mongodb+srv://ainypus:3mz1b0dZcWKPYxtZ@cluster0.ksi9c62.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
             "db_name": os.getenv("MONGO_DB_NAME", "tfo"),
         }
 
