@@ -8,9 +8,9 @@
 
 ## 🎥 Demo Video
 
-[![Watch the demo](app/assets/demo.png)](https://www.loom.com/share/b04beacb6a31409f9e012098c988d943?sid=6418620e-1b6d-4f7c-884d-10e7dba7b5a7)
+[![Watch the demo](app/assets/demo.png)](https://www.linkedin.com/posts/ali-mirsa_ai-genai-langchain-activity-7345198146718703617-7b3G?utm_source=share&utm_medium=member_desktop&rcm=ACoAAET2pvMBDY5dS-gEdjcg3kdD11VDME14iso)
 
-▶️ [Click here to watch the full video demo](https://www.loom.com/share/b04beacb6a31409f9e012098c988d943?sid=6418620e-1b6d-4f7c-884d-10e7dba7b5a7)
+▶️ [Click here to watch the full video demo](https://www.linkedin.com/posts/ali-mirsa_ai-genai-langchain-activity-7345198146718703617-7b3G?utm_source=share&utm_medium=member_desktop&rcm=ACoAAET2pvMBDY5dS-gEdjcg3kdD11VDME14iso)
 
 ---
 
